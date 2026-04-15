@@ -9,19 +9,29 @@
       font-family: Arial;
       background: #121212;
       color: white;
+      margin: 0;
       padding: 20px;
-      max-width: 900px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .container {
+      display: flex;
+      gap: 20px;
+      max-width: 1100px;
       margin: auto;
     }
 
-    h1 { text-align: center; }
-
-    .card {
+    .column {
+      flex: 1;
       background: #1e1e1e;
       padding: 20px;
       border-radius: 12px;
-      margin-bottom: 20px;
       box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      height: fit-content;
     }
 
     input, textarea, button {
@@ -56,13 +66,16 @@
     .positive { color: #4CAF50; }
     .negative { color: #ff4d4d; }
 
-    .row {
-      display: flex;
-      gap: 10px;
+    #balance {
+      font-size: 32px;
+      text-align: center;
+      margin-top: 10px;
     }
 
-    .row input {
-      flex: 1;
+    @media (max-width: 900px) {
+      .container {
+        flex-direction: column;
+      }
     }
   </style>
 </head>
@@ -71,68 +84,79 @@
 
 <h1>💰 Finance Tracker</h1>
 
-<div class="card">
-  <h2>Starting Balance</h2>
-  <input type="number" id="startingBalance" placeholder="Enter starting balance">
-  <button onclick="setStartingBalance()">Save</button>
-</div>
+<div class="container">
 
-<div class="card">
-  <h2>📧 Paste Email</h2>
-  <textarea id="emailText" rows="4" placeholder="Paste email content here..."></textarea>
-  <button onclick="parseEmail()">Parse Email</button>
-</div>
+  <!-- LEFT COLUMN -->
+  <div class="column">
+    <h2>⚙️ Inputs</h2>
 
-<div class="card">
-  <h2>💵 Balance</h2>
-  <h1 id="balance">$0.00</h1>
-</div>
+    <label>Starting Balance</label>
+    <input type="number" id="startingBalance" placeholder="Enter starting balance">
+    <button onclick="setStartingBalance()">Save Balance</button>
 
-<div class="card">
-  <h2>📊 Transactions</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Description</th>
-        <th>Amount</th>
-      </tr>
-    </thead>
-    <tbody id="transactionsTable"></tbody>
-  </table>
+    <hr style="margin:20px 0; border:1px solid #333;">
+
+    <h2>📧 Email Parser</h2>
+    <textarea id="emailText" rows="6" placeholder="Paste email here..."></textarea>
+    <button onclick="parseEmail()">Parse Email</button>
+
+    <hr style="margin:20px 0; border:1px solid #333;">
+
+    <h2>💵 Current Balance</h2>
+    <div id="balance">$0.00</div>
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div class="column">
+    <h2>📊 Transactions</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th>Amount</th>
+        </tr>
+      </thead>
+      <tbody id="transactionsTable"></tbody>
+    </table>
+  </div>
+
 </div>
 
 <script>
+
 const API_URL = "https://finance-backend-ja91.onrender.com";
 
 let transactions = [];
 let startingBalance = 0;
 
-// ===============================
-// LOAD DATA
-// ===============================
+// ---------------------------
+// LOAD TRANSACTIONS
+// ---------------------------
 async function loadTransactions() {
   try {
     const res = await fetch(API_URL + "/transactions");
-    const data = await res.json();
-
-    transactions = data;
+    transactions = await res.json();
     updateUI();
   } catch (err) {
-    console.error("Error loading transactions:", err);
+    console.error(err);
   }
 }
 
-// ===============================
-// SET STARTING BALANCE
-// ===============================
+// ---------------------------
+// SET BALANCE
+// ---------------------------
 function setStartingBalance() {
-  startingBalance = parseFloat(document.getElementById("startingBalance").value) || 0;
+  startingBalance = parseFloat(
+    document.getElementById("startingBalance").value
+  ) || 0;
+
   updateUI();
 }
 
-// ===============================
-// UPDATE UI
-// ===============================
+// ---------------------------
+// UI UPDATE
+// ---------------------------
 function updateUI() {
   let balance = startingBalance;
 
@@ -152,12 +176,13 @@ function updateUI() {
     `;
   });
 
-  document.getElementById("balance").innerText = "$" + balance.toFixed(2);
+  document.getElementById("balance").innerText =
+    "$" + balance.toFixed(2);
 }
 
-// ===============================
-// PARSE EMAIL
-// ===============================
+// ---------------------------
+// EMAIL PARSER
+// ---------------------------
 async function parseEmail() {
   const text = document.getElementById("emailText").value.toLowerCase();
 
@@ -173,19 +198,16 @@ async function parseEmail() {
 
   if (text.includes("spent") || text.includes("purchase") || text.includes("charged")) {
     amount *= -1;
-    desc = "Card Purchase";
+    desc = "Expense";
   }
 
   if (text.includes("deposit") || text.includes("payroll") || text.includes("paid")) {
     desc = "Income";
   }
 
-  // SEND TO BACKEND
   await fetch(API_URL + "/transactions", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ desc, amount })
   });
 
@@ -194,9 +216,7 @@ async function parseEmail() {
   loadTransactions();
 }
 
-// ===============================
 // INIT
-// ===============================
 loadTransactions();
 
 </script>
