@@ -1,55 +1,86 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Finance Tracker</title>
+  <title>Finance Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     body {
-      font-family: Arial;
-      background: #121212;
-      color: white;
       margin: 0;
+      font-family: Arial;
+      background: #0f172a;
+      color: white;
+      display: flex;
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 220px;
+      background: #111827;
+      height: 100vh;
       padding: 20px;
     }
 
-    h1 {
-      text-align: center;
+    .sidebar h2 {
+      margin-bottom: 30px;
+    }
+
+    .nav-item {
+      padding: 10px;
+      margin: 5px 0;
+      background: #1f2937;
+      border-radius: 8px;
+    }
+
+    /* MAIN */
+    .main {
+      flex: 1;
+      padding: 20px;
+    }
+
+    .top-cards {
+      display: flex;
+      gap: 10px;
       margin-bottom: 20px;
     }
 
-    .container {
-      display: flex;
-      gap: 20px;
-      max-width: 1100px;
-      margin: auto;
-    }
-
-    .column {
+    .card {
       flex: 1;
-      background: #1e1e1e;
-      padding: 20px;
+      background: #1e293b;
+      padding: 15px;
       border-radius: 12px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.5);
-      height: fit-content;
     }
 
-    input, textarea, button {
+    .big {
+      font-size: 28px;
+      margin-top: 10px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    textarea, input, button {
       width: 100%;
       padding: 10px;
       margin-top: 10px;
-      border-radius: 6px;
+      border-radius: 8px;
       border: none;
     }
 
     button {
-      background: #4CAF50;
+      background: #22c55e;
       color: white;
       cursor: pointer;
     }
 
     button:hover {
-      background: #45a049;
+      background: #16a34a;
     }
 
     table {
@@ -58,66 +89,79 @@
       border-collapse: collapse;
     }
 
-    th, td {
+    td {
+      padding: 8px;
+      border-bottom: 1px solid #334155;
+    }
+
+    .positive { color: #22c55e; }
+    .negative { color: #ef4444; }
+
+    canvas {
+      background: #1e293b;
+      border-radius: 12px;
       padding: 10px;
-      border-bottom: 1px solid #333;
     }
 
-    .positive { color: #4CAF50; }
-    .negative { color: #ff4d4d; }
-
-    #balance {
-      font-size: 32px;
-      text-align: center;
-      margin-top: 10px;
-    }
-
-    @media (max-width: 900px) {
-      .container {
-        flex-direction: column;
-      }
-    }
   </style>
 </head>
 
 <body>
 
-<h1>💰 Finance Tracker</h1>
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <h2>💰 Finance</h2>
+  <div class="nav-item">Dashboard</div>
+  <div class="nav-item">Transactions</div>
+  <div class="nav-item">Insights</div>
+</div>
 
-<div class="container">
+<!-- MAIN -->
+<div class="main">
 
-  <!-- LEFT COLUMN -->
-  <div class="column">
-    <h2>⚙️ Inputs</h2>
+  <!-- TOP CARDS -->
+  <div class="top-cards">
+    <div class="card">
+      <div>Total Balance</div>
+      <div class="big" id="balance">$0</div>
+    </div>
 
-    <label>Starting Balance</label>
-    <input type="number" id="startingBalance" placeholder="Enter starting balance">
-    <button onclick="setStartingBalance()">Save Balance</button>
+    <div class="card">
+      <div>Income</div>
+      <div class="big" id="income">$0</div>
+    </div>
 
-    <hr style="margin:20px 0; border:1px solid #333;">
-
-    <h2>📧 Email Parser</h2>
-    <textarea id="emailText" rows="6" placeholder="Paste email here..."></textarea>
-    <button onclick="parseEmail()">Parse Email</button>
-
-    <hr style="margin:20px 0; border:1px solid #333;">
-
-    <h2>💵 Current Balance</h2>
-    <div id="balance">$0.00</div>
+    <div class="card">
+      <div>Expenses</div>
+      <div class="big" id="expenses">$0</div>
+    </div>
   </div>
 
-  <!-- RIGHT COLUMN -->
-  <div class="column">
-    <h2>📊 Transactions</h2>
+  <!-- INPUTS -->
+  <div class="grid">
 
+    <div class="card">
+      <h3>⚙️ Setup</h3>
+
+      <input type="number" id="startingBalance" placeholder="Starting balance">
+      <button onclick="setStartingBalance()">Save</button>
+
+      <textarea id="emailText" rows="5" placeholder="Paste email here"></textarea>
+      <button onclick="parseEmail()">Parse Email</button>
+    </div>
+
+    <div class="card">
+      <h3>📊 Income vs Expenses</h3>
+      <canvas id="chart"></canvas>
+    </div>
+
+  </div>
+
+  <!-- TRANSACTIONS -->
+  <div class="card" style="margin-top:15px;">
+    <h3>Transactions</h3>
     <table>
-      <thead>
-        <tr>
-          <th>Description</th>
-          <th>Amount</th>
-        </tr>
-      </thead>
-      <tbody id="transactionsTable"></tbody>
+      <tbody id="table"></tbody>
     </table>
   </div>
 
@@ -129,74 +173,82 @@ const API_URL = "https://finance-backend-ja91.onrender.com";
 
 let transactions = [];
 let startingBalance = 0;
+let chart;
 
-// ---------------------------
-// LOAD TRANSACTIONS
-// ---------------------------
+// ------------------ LOAD ------------------
 async function loadTransactions() {
-  try {
-    const res = await fetch(API_URL + "/transactions");
-    transactions = await res.json();
-    updateUI();
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-// ---------------------------
-// SET BALANCE
-// ---------------------------
-function setStartingBalance() {
-  startingBalance = parseFloat(
-    document.getElementById("startingBalance").value
-  ) || 0;
-
+  const res = await fetch(API_URL + "/transactions");
+  transactions = await res.json();
   updateUI();
 }
 
-// ---------------------------
-// UI UPDATE
-// ---------------------------
-function updateUI() {
-  let balance = startingBalance;
+// ------------------ BALANCE ------------------
+function setStartingBalance() {
+  startingBalance = parseFloat(document.getElementById("startingBalance").value) || 0;
+  updateUI();
+}
 
-  const table = document.getElementById("transactionsTable");
+// ------------------ UI ------------------
+function updateUI() {
+
+  let balance = startingBalance;
+  let income = 0;
+  let expenses = 0;
+
+  const table = document.getElementById("table");
   table.innerHTML = "";
 
   transactions.forEach(t => {
     balance += t.amount;
 
+    if (t.amount >= 0) income += t.amount;
+    else expenses += Math.abs(t.amount);
+
     table.innerHTML += `
       <tr>
         <td>${t.desc}</td>
         <td class="${t.amount >= 0 ? 'positive' : 'negative'}">
-          ${t.amount >= 0 ? '+' : ''}${t.amount.toFixed(2)}
+          ${t.amount.toFixed(2)}
         </td>
       </tr>
     `;
   });
 
-  document.getElementById("balance").innerText =
-    "$" + balance.toFixed(2);
+  document.getElementById("balance").innerText = "$" + balance.toFixed(2);
+  document.getElementById("income").innerText = "$" + income.toFixed(2);
+  document.getElementById("expenses").innerText = "$" + expenses.toFixed(2);
+
+  updateChart(income, expenses);
 }
 
-// ---------------------------
-// EMAIL PARSER
-// ---------------------------
-async function parseEmail() {
-  const text = document.getElementById("emailText").value.toLowerCase();
+// ------------------ CHART ------------------
+function updateChart(income, expenses) {
 
+  if (chart) chart.destroy();
+
+  chart = new Chart(document.getElementById("chart"), {
+    type: "doughnut",
+    data: {
+      labels: ["Income", "Expenses"],
+      datasets: [{
+        data: [income, expenses]
+      }]
+    }
+  });
+}
+
+// ------------------ EMAIL PARSER ------------------
+async function parseEmail() {
+
+  const text = document.getElementById("emailText").value.toLowerCase();
   const match = text.match(/\$([0-9]+(\.[0-9]+)?)/);
 
-  if (!match) {
-    alert("No amount found");
-    return;
-  }
+  if (!match) return alert("No amount found");
 
   let amount = parseFloat(match[1]);
   let desc = "Transaction";
 
-  if (text.includes("spent") || text.includes("purchase") || text.includes("charged")) {
+  if (text.includes("spent") || text.includes("charged") || text.includes("purchase")) {
     amount *= -1;
     desc = "Expense";
   }
@@ -212,7 +264,6 @@ async function parseEmail() {
   });
 
   document.getElementById("emailText").value = "";
-
   loadTransactions();
 }
 
